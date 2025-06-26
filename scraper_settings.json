@@ -1,0 +1,57 @@
+{
+    "network_settings": {
+        "request_timeout": 30,
+        "request_delay": 2,
+        "max_retries": 2,
+        "adaptive_delay": true,
+        "random_user_agent": true
+    },
+    "browser_settings": {
+        "use_selenium": false,
+        "headless_mode": true,
+        "window_size": [1920, 1080]
+    },
+    "test_settings": {
+        "test_mode": false,
+        "test_mode_article_limit": 5
+    },
+    "content_validation": {
+        "content_validation": false,
+        "min_content_length": 100,
+        "max_content_length": 50000
+    },
+    "scraping_targets": {
+        "BBC Business": {
+            "enabled": true,
+            "url": "https://www.bbc.com/business",
+            "selectors": ["article a", ".gs-c-promo-heading a", "h3 a", "h2 a"],
+            "use_selenium": false
+        },
+        "AP News Business": {
+            "enabled": true,
+            "url": "https://apnews.com/hub/business",
+            "selectors": ["h2 a", "h3 a", ".PagePromo-title a", "article a"],
+            "use_selenium": false
+        },
+        "NPR Business": {
+            "enabled": true,
+            "url": "https://www.npr.org/sections/business/",
+            "selectors": ["h2 a", "h3 a", ".item-info-wrap a", "article a"],
+            "use_selenium": false
+        },
+        "FINVIZ": {
+            "enabled": true,
+            "url": "https://finviz.com/news.ashx",
+            "selectors": [".news-link-container a", ".news-link a", "td a[target=\"_blank\"]"],
+            "use_selenium": false
+        },
+        "Yahoo Finance": {
+            "enabled": true,
+            "url": "https://finance.yahoo.com/news/",
+            "selectors": ["h3 a", "h2 a", ".js-content-viewer a", "[data-module=\"stream\"] a"],
+            "use_selenium": false
+        }
+    },
+    "version": "1.0.0",
+    "last_updated": "2024-06-27T00:00:00Z"
+}

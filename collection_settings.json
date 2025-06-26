@@ -1,6 +1,6 @@
 {
-  "interval": 4,
-  "limit": 15,
+  "interval": 5,
+  "limit": 5,
   "sources": "bloomberg.com, cnbc.com, marketwatch.com",
-  "updated_at": "2025-06-26T00:21:41.252546"
+  "updated_at": "2025-06-27T00:32:12.295131"
 }

@@ -16,28 +16,28 @@ logger = logging.getLogger(__name__)
 
 
 class FinancialContentGenerator:
-    """금융/투자 전문 콘텐츠 생성기"""
+    """금융/투자 전문 콘텐츠 생성기 - 개선된 버전"""
     
     def __init__(self):
-        self.max_length = 1500
-        self.min_length = 100
+        self.max_length = 2000  # 더 상세한 분석을 위해 증가
+        self.min_length = 150
         
     def generate_from_scraped_content(self, scraped_content: ScrapedContent) -> Optional[GeneratedContent]:
-        """스크래핑된 콘텐츠로부터 구조화된 금융 콘텐츠 생성"""
+        """스크래핑된 콘텐츠로부터 개선된 구조화된 금융 콘텐츠 생성"""
         try:
-            logger.info(f"구조화된 금융 콘텐츠 생성 시작: {scraped_content.title}")
+            logger.info(f"개선된 구조화된 금융 콘텐츠 생성 시작: {scraped_content.title}")
             
-            # 콘텐츠 정제 및 번역
+            # 콘텐츠 정제 및 분석
             korean_title = self._translate_title(str(scraped_content.title))
-            cleaned_content = self._clean_and_translate_content(str(scraped_content.content))
+            cleaned_content = self._clean_and_analyze_content(str(scraped_content.content))
             
-            # 금융 전문 요약 생성
-            financial_summary = self._generate_financial_summary(cleaned_content)
+            # 개선된 금융 전문 요약 생성
+            financial_summary = self._generate_enhanced_financial_summary(cleaned_content)
             
-            # 금융 태그 추출
-            financial_tags = self._extract_financial_tags(cleaned_content, korean_title)
+            # 정량적 금융 태그 추출
+            financial_tags = self._extract_quantitative_financial_tags(cleaned_content, korean_title)
             
-            # 새로운 구조화된 템플릿 사용
+            # 새로운 개선된 구조화된 템플릿 사용
             from .content_templates import StructuredFinancialTemplate
             
             formatted_content = StructuredFinancialTemplate.format_content(
@@ -55,251 +55,149 @@ class FinancialContentGenerator:
                 content=formatted_content,
                 summary=financial_summary,
                 tags=financial_tags,
-                content_type='structured_financial_v2',
+                content_type='enhanced_structured_financial_v3',
                 created_at=datetime.utcnow()
             )
             
             db.session.add(generated_content)
             db.session.commit()
             
-            logger.info(f"구조화된 금융 콘텐츠 생성 완료: {korean_title}")
+            logger.info(f"개선된 구조화된 금융 콘텐츠 생성 완료: {korean_title}")
             return generated_content
             
         except Exception as e:
-            logger.error(f"구조화된 금융 콘텐츠 생성 실패: {str(e)}")
+            logger.error(f"개선된 구조화된 금융 콘텐츠 생성 실패: {str(e)}")
             db.session.rollback()
             return None
     
-    def _clean_and_translate_content(self, content: str) -> str:
-        """영어 콘텐츠 정제 및 한국어 번역"""
+    def _clean_and_analyze_content(self, content: str) -> str:
+        """영어 콘텐츠 정제 및 분석 - 개선된 버전"""
         # HTML 태그 제거
         content = re.sub(r'<[^>]+>', '', content)
         
         # 불필요한 공백 정리
         content = re.sub(r'\s+', ' ', content)
         
-        # 길이 제한
+        # 숫자와 퍼센트 패턴 보존
+        content = self._preserve_numerical_data(content)
+        
+        # 길이 제한 (더 상세한 분석을 위해 증가)
         if len(content) > self.max_length:
             content = content[:self.max_length] + '...'
         
         # 실제 번역은 여기서 간단한 키워드 기반 처리
         # 실제 구현시에는 Google Translate API 등 사용 권장
-        korean_content = self._simple_translate(content.strip())
+        korean_content = self._enhanced_translate(content.strip())
         
         return korean_content
     
-    def _simple_translate(self, text: str) -> str:
-        """간단한 키워드 기반 번역 (실제로는 번역 API 사용 권장)"""
-        # 주요 금융 용어 및 문장 번역 매핑
-        translation_map = {
-            # 금융 기관 및 정부
-            'U.S. Treasury Department': '미국 재무부',
-            'Treasury Department': '재무부',
-            'Office of Foreign Assets Control': 'OFAC',
-            'OFAC': 'OFAC',
-            'Federal Reserve': '연준',
-            'Fed': '연준',
-            'Treasury Secretary': '재무장관',
-            'Secretary': '장관',
-            
-            # 금융 용어
-            'sanctions': '제재',
-            'sanctioned': '제재된',
-            'designate': '지정',
-            'designated': '지정된',
-            'blocked': '차단된',
-            'freeze': '동결',
-            'assets': '자산',
-            'transactions': '거래',
-            'companies': '기업',
-            'individual': '개인',
-            'entity': '기업체',
-            'entities': '기업들',
-            
-            # 국가 및 지역
-            'Chinese': '중국인',
-            'China': '중국',
-            'Hong Kong': '홍콩',
-            'Singapore': '싱가포르',
-            'Iran': '이란',
-            'Iranian': '이란의',
-            
-            # 산업 관련
-            'defense industries': '국방산업',
-            'defense sector': '국방부문',
-            'machinery': '기계류',
-            'equipment': '장비',
-            'technology': '기술',
-            'weapons': '무기',
-            'arms': '무기',
-            'ballistic missile': '탄도미사일',
-            'drone': '무인기',
-            'dual-use': '이중용도',
-            
-            # 기업 및 개인명
-            'Zhang Yanbang': '장옌방(Zhang Yanbang)',
-            'Scott Bessent': '스콧 베센트',
-            'SHUN KAI XING': 'SHUN KAI XING',
-            'Unico Shipping Co Ltd': '홍콩 유니코 쉬핑(Unico Shipping Co Ltd)',
-            'captain': '선장',
-            'vessel': '선박',
-            'shipping': '쉬핑',
-            
-            # 동작 및 상태
-            'announced': '발표했다',
-            'targeting': '대상으로',
-            'transport': '운송',
-            'transporting': '운송하다',
-            'attempting': '시도',
-            'falsify': '위조',
-            'conceal': '은닉',
-            'warned': '경고했다',
-            'continue': '계속',
-            'blocking': '차단',
-            'procurement': '조달',
-            'supporting': '지원하는',
-            'conducting': '수행하는',
-            'significant': '중요한',
-            'face': '직면할',
-            'aimed at': '목표로 하는',
-            'disrupting': '차단',
-            
-            # 기타
-            'Friday': '금요일',
-            'according to': '~에 따르면',
-            'Executive Order': '행정명령',
-            'weapons of mass destruction': '대량살상무기',
-            'proliferation': '확산',
-            'foreign financial institutions': '외국 금융기관',
-            'secondary sanctions': '2차 제재',
-            'National Security Presidential Memorandum': '국가안보 대통령 메모랜덤'
+    def _preserve_numerical_data(self, content: str) -> str:
+        """숫자 데이터 보존 및 강조"""
+        import re
+        
+        # 퍼센트, 달러, 숫자 패턴 보존
+        patterns = [
+            (r'(\d+\.?\d*%)', r'【\1】'),  # 퍼센트
+            (r'(\$\d+\.?\d*[BMK]?)', r'【\1】'),  # 달러
+            (r'(\d+\.?\d*\s*billion)', r'【\1】'),  # 억 단위
+            (r'(\d+\.?\d*\s*million)', r'【\1】'),  # 백만 단위
+            (r'(\d+\.?\d*\s*trillion)', r'【\1】'),  # 조 단위
+        ]
+        
+        for pattern, replacement in patterns:
+            content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
+        
+        return content
+    
+    def _enhanced_translate(self, content: str) -> str:
+        """개선된 번역 함수"""
+        # 보존된 숫자 데이터 복원
+        content = content.replace('【', '').replace('】', '')
+        
+        # 간단한 키워드 기반 번역 (실제로는 번역 API 사용 권장)
+        translations = {
+            'Federal Reserve': '연방준비제도',
+            'interest rate': '금리',
+            'inflation': '인플레이션',
+            'GDP': 'GDP',
+            'stock market': '주식시장',
+            'recession': '경기침체',
+            'earnings': '실적',
+            'revenue': '매출',
+            'profit': '이익',
+            'investment': '투자',
+            'portfolio': '포트폴리오',
+            'volatility': '변동성'
         }
         
-        # 전체 문장 번역 매핑 (더 자연스러운 번역을 위해)
-        sentence_translations = {
-            'The U.S. Treasury Department\'s Office of Foreign Assets Control (OFAC) announced new sanctions Friday targeting one individual and eight companies': 
-            '미국 재무부 OFAC가 금요일 개인 1명과 기업 8곳을 대상으로 새로운 제재를 발표했다',
+        for english, korean in translations.items():
+            content = content.replace(english, korean)
+        
+        return content
+    
+    def _generate_enhanced_financial_summary(self, content: str) -> str:
+        """개선된 금융 전문 요약 생성"""
+        # 핵심 문장 추출 (숫자가 포함된 문장 우선)
+        sentences = content.split('.')
+        important_sentences = []
+        
+        for sentence in sentences:
+            if any(char.isdigit() for char in sentence) or len(sentence.strip()) > 50:
+                important_sentences.append(sentence.strip())
+                if len(important_sentences) >= 3:
+                    break
+        
+        if not important_sentences:
+            important_sentences = sentences[:2]
+        
+        summary = '. '.join(important_sentences).strip()
+        return summary[:500] + '...' if len(summary) > 500 else summary
+    
+    def _extract_quantitative_financial_tags(self, content: str, title: str) -> List[str]:
+        """정량적 금융 태그 추출"""
+        tags = []
+        content_lower = (content + ' ' + title).lower()
+        
+        # 정량적 키워드 매핑
+        quantitative_keywords = {
+            # 시장 지표
+            'gdp': 'GDP', 'inflation': '인플레이션', 'unemployment': '실업률',
+            'interest rate': '금리', 'yield': '수익률', 'volatility': '변동성',
             
-            'for their role in transporting sensitive machinery to Iran\'s defense industries':
-            '이란 국방산업용 민감 기계류 운송에 관여한 혐의로',
+            # 기업 실적
+            'earnings': '실적', 'revenue': '매출', 'profit': '이익', 'eps': 'EPS',
+            'dividend': '배당', 'buyback': '자사주매입',
             
-            'was designated alongside his Hong Kong-based shipping company':
-            '홍콩 소재 선박회사와 함께 지정되었다',
+            # 섹터
+            'technology': '기술주', 'healthcare': '헬스케어', 'finance': '금융주',
+            'energy': '에너지', 'consumer': '소비재', 'industrial': '산업재',
             
-            'The sanctions also target four Chinese companies':
-            '제재는 또한 중국 기업 4곳도 대상으로 한다',
+            # 암호화폐
+            'bitcoin': '비트코인', 'ethereum': '이더리움', 'crypto': '암호화폐',
             
-            'was blocked as a designated asset for attempting to transport dual-use machinery':
-            '이중용도 기계 운송 시도로 차단 자산으로 지정되었다',
-            
-            'tried to falsify shipping documents to conceal the Iran-bound cargo':
-            '이란행 화물을 은닉하기 위해 운송 서류 위조를 시도했다',
-            
-            'will continue blocking Iran\'s procurement of dual-use technology':
-            '이란의 이중용도 기술 조달을 계속 차단할 것이다',
-            
-            'supporting its ballistic missile, drone, and asymmetric weapons programs':
-            '탄도미사일, 무인기, 비대칭 무기 프로그램을 지원하는',
-            
-            'may face secondary sanctions':
-            '2차 제재에 직면할 수 있다'
+            # 지정학
+            'fed': '연준', 'china': '중국', 'trade war': '무역전쟁',
+            'sanctions': '제재', 'recession': '경기침체'
         }
         
-        # 먼저 전체 문장 번역 시도
-        translated_text = text
-        for english_sentence, korean_sentence in sentence_translations.items():
-            translated_text = translated_text.replace(english_sentence, korean_sentence)
+        for keyword, tag in quantitative_keywords.items():
+            if keyword in content_lower and tag not in tags:
+                tags.append(tag)
         
-        # 개별 키워드 번역
-        for english, korean in translation_map.items():
-            translated_text = re.sub(rf'\b{re.escape(english)}\b', korean, translated_text, flags=re.IGNORECASE)
+        # 숫자 패턴 기반 태그
+        import re
+        if re.search(r'\d+\.?\d*%', content):
+            tags.append('퍼센트지표')
+        if re.search(r'\$\d+', content):
+            tags.append('달러수치')
+        if re.search(r'\d+\.?\d*\s*(billion|million|trillion)', content):
+            tags.append('대규모수치')
         
-        return translated_text
+        return tags[:10]  # 최대 10개 태그
     
     def _translate_title(self, title: str) -> str:
         """제목 번역"""
-        return self._simple_translate(title)
-    
-    def _generate_financial_summary(self, content: str) -> str:
-        """금융 전문 요약 생성"""
-        sentences = re.split(r'[.!?]+', content)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        
-        # 금융 관련 중요 키워드
-        important_keywords = [
-            '연준', '금리', '인플레이션', '실적', '매출', '수익',
-            '주식', '투자', '시장', '거래', '상승', '하락',
-            '발표', '정책', '결정', '예상', '전망', '분석',
-            '비트코인', '암호화폐', '트럼프', '파월'
-        ]
-        
-        # 숫자나 퍼센티지가 포함된 문장 우선
-        priority_sentences = []
-        normal_sentences = []
-        
-        for sentence in sentences[:5]:
-            if len(sentence) > 20 and len(sentence) < 200:
-                # 숫자, 퍼센티지, 중요 키워드 포함 문장 우선
-                has_numbers = bool(re.search(r'\d+', sentence))
-                has_percentage = bool(re.search(r'\d+%', sentence))
-                has_keywords = any(keyword in sentence for keyword in important_keywords)
-                
-                if has_numbers or has_percentage or has_keywords:
-                    priority_sentences.append(sentence)
-                else:
-                    normal_sentences.append(sentence)
-        
-        # 우선순위 문장부터 선택
-        selected_sentences = priority_sentences[:2] + normal_sentences[:1]
-        summary = '. '.join(selected_sentences[:3])
-        
-        if summary:
-            summary += '.'
-        else:
-            summary = sentences[0] if sentences else content[:200] + '...'
-        
-        return summary
-    
-    def _extract_financial_tags(self, content: str, title: str) -> List[str]:
-        """금융 전문 태그 추출"""
-        tags = []
-        full_text = f"{title} {content}".lower()
-        
-        # 금융 관련 키워드 매핑
-        financial_keywords = {
-            'fed': ['연준', 'federal reserve', 'fed', '파월', 'powell', '금리', 'interest rate'],
-            'crypto': ['비트코인', 'bitcoin', '암호화폐', 'cryptocurrency', '이더리움', 'ethereum', 'crypto'],
-            'earnings': ['실적', '수익', 'earnings', 'revenue', 'profit', '분기실적'],
-            'market': ['시장', '주식', 'stock', 'market', '거래', 'trading'],
-            'tech': ['기술주', '테크', 'tech', '애플', 'apple', '구글', 'google', '마이크로소프트', 'microsoft'],
-            'trump': ['트럼프', 'trump', '대통령', 'president'],
-            'breaking': ['속보', 'breaking', 'urgent', '긴급'],
-            'investment': ['투자', 'investment', '펀드', 'fund'],
-            'policy': ['정책', 'policy', '발표', 'announcement'],
-            'inflation': ['인플레이션', 'inflation', '물가']
-        }
-        
-        # 키워드 매칭
-        for tag, keywords in financial_keywords.items():
-            if any(keyword in full_text for keyword in keywords):
-                tags.append(tag)
-        
-        # 특정 종목명 감지
-        major_stocks = ['tesla', 'apple', 'microsoft', 'google', 'amazon', 'meta', 'nvidia']
-        for stock in major_stocks:
-            if stock in full_text:
-                tags.append('individual_stock')
-                break
-        
-        # 기본 태그 추가
-        if not tags:
-            tags.append('general_finance')
-        
-        # 항상 포함할 기본 태그
-        if 'market' not in tags:
-            tags.append('market')
-        
-        return tags[:5]  # 최대 5개 태그
+        return self._enhanced_translate(title)
     
     def generate_batch_content(self, limit: int = 10) -> List[GeneratedContent]:
         """미처리된 금융 콘텐츠들을 일괄 처리"""

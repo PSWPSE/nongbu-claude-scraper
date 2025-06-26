@@ -1,9 +1,9 @@
 {
-  "scraping_interval_minutes": 240,
+  "scraping_interval_minutes": 300,
   "time_range_hours": 4,
   "content_time_limit_minutes": 30,
-  "min_content_length": 200,
-  "max_articles_per_source": 10,
+  "min_content_length": 300,
+  "max_articles_per_source": 5,
   "min_word_count": 50,
   "require_author": false,
   "require_publish_date": true,
@@ -24,5 +24,5 @@
   "max_retries": 2,
   "content_quality_score_min": 0.7,
   "duplicate_check_enabled": true,
-  "content_validation_strict": false
+  "content_validation_strict": true
 }

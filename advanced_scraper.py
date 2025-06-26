@@ -392,7 +392,7 @@ class AdvancedScraper:
                 quality_score += 1
         
         final_score = total_score + quality_score
-        min_score = 4  # 최소 4점 이상 필요
+        min_score = 6  # 최소 4점 이상 필요
         
         logger.info(f"콘텐츠 점수: 관련성={relevance_score}, 제목={title_score}, 품질={quality_score}, 총합={final_score}/{min_score}")
         return final_score >= min_score
