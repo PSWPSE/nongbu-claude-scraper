@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NongBu 금융 투자 정보 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card .icon {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card .number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .label {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+        
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .controls h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .content-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .content-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .content-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .content-item {
+            border-bottom: 1px solid #ecf0f1;
+            padding: 15px 0;
+        }
+        
+        .content-item:last-child {
+            border-bottom: none;
+        }
+        
+        .content-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .content-meta {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-success {
+            background-color: #27ae60;
+        }
+        
+        .status-warning {
+            background-color: #f39c12;
+        }
+        
+        .status-error {
+            background-color: #e74c3c;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+        
+        .refresh-time {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>🏦 NongBu 금융 투자 정보 시스템</h1>
+            <p class="subtitle">실시간 금융 뉴스 수집 및 분석 대시보드</p>
+        </div>
+        
+        <!-- 통계 카드 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="icon">📡</div>
+                <div class="number" id="targets-count">-</div>
+                <div class="label">활성 스크래핑 타겟</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">📄</div>
+                <div class="number" id="scraped-count">-</div>
+                <div class="label">수집된 콘텐츠</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">🎯</div>
+                <div class="number" id="generated-count">-</div>
+                <div class="label">생성된 콘텐츠</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="icon">📤</div>
+                <div class="number" id="sent-count">-</div>
+                <div class="label">Slack 전송 완료</div>
+            </div>
+        </div>
+        
+        <!-- 제어 버튼 -->
+        <div class="controls">
+            <h2>🎮 시스템 제어</h2>
+            <div class="button-group">
+                <button class="btn" onclick="scrapeContent()">📡 콘텐츠 수집</button>
+                <button class="btn" onclick="generateContent()">🎯 콘텐츠 생성</button>
+                <button class="btn" onclick="sendToSlack()">📤 Slack 전송</button>
+                <button class="btn" onclick="refreshData()">🔄 새로고침</button>
+            </div>
+        </div>
+        
+        <!-- 최근 수집된 콘텐츠 -->
+        <div class="content-section">
+            <h3>📄 최근 수집된 콘텐츠</h3>
+            <div id="scraped-content" class="content-list">
+                <div class="loading">데이터를 불러오는 중...</div>
+            </div>
+        </div>
+        
+        <!-- 생성된 콘텐츠 -->
+        <div class="content-section">
+            <h3>🎯 생성된 콘텐츠</h3>
+            <div class="button-group" style="margin-bottom: 15px;">
+                <button class="btn" onclick="loadMarkdownFiles()">📁 저장된 MD 파일 보기</button>
+            </div>
+            <div id="generated-content" class="content-list">
+                <div class="loading">데이터를 불러오는 중...</div>
+            </div>
+        </div>
+
+        <!-- 저장된 마크다운 파일 -->
+        <div class="content-section" id="markdown-files-section" style="display: none;">
+            <h3>📄 저장된 마크다운 파일</h3>
+            <div id="markdown-files" class="content-list">
+                <div class="loading">파일 목록을 불러오는 중...</div>
+            </div>
+        </div>
+        
+        <!-- 스크래핑 타겟 상태 -->
+        <div class="content-section">
+            <h3>📡 스크래핑 타겟 상태</h3>
+            <div id="targets-status" class="content-list">
+                <div class="loading">데이터를 불러오는 중...</div>
+            </div>
+        </div>
+        
+        <div class="refresh-time">
+            마지막 업데이트: <span id="last-update">-</span>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let isLoading = false;
+        
+        // 페이지 로드 시 초기 데이터 로드
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+            // 30초마다 자동 새로고침
+            setInterval(refreshData, 30000);
+        });
+        
+        // 데이터 새로고침
+        async function refreshData() {
+            if (isLoading) return;
+            isLoading = true;
+            
+            try {
+                await Promise.all([
+                    loadStats(),
+                    loadScrapedContent(),
+                    loadGeneratedContent(),
+                    loadTargetsStatus()
+                ]);
+                
+                document.getElementById('last-update').textContent = new Date().toLocaleString('ko-KR');
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+            } finally {
+                isLoading = false;
+            }
+        }
+        
+        // 통계 데이터 로드
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                document.getElementById('targets-count').textContent = stats.targets?.active || '0';
+                document.getElementById('scraped-count').textContent = stats.scraped_contents || '0';
+                document.getElementById('generated-count').textContent = stats.generated_contents || '0';
+                document.getElementById('sent-count').textContent = stats.slack_messages?.sent || '0';
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+            }
+        }
+        
+        // 수집된 콘텐츠 로드
+        async function loadScrapedContent() {
+            try {
+                const response = await fetch('/api/contents/scraped?limit=5');
+                const contents = await response.json();
+                
+                const container = document.getElementById('scraped-content');
+                if (contents.length === 0) {
+                    container.innerHTML = '<div class="loading">수집된 콘텐츠가 없습니다.</div>';
+                    return;
+                }
+                
+                container.innerHTML = contents.map(content => `
+                    <div class="content-item">
+                        <div class="content-title">${content.title || 'No Title'}</div>
+                        <div class="content-meta">
+                            <span class="status-indicator ${content.content?.length > 1000 ? 'status-success' : content.content?.length > 500 ? 'status-warning' : 'status-error'}"></span>
+                            ${content.target_name || 'Unknown'} • 
+                            ${content.content?.length || 0}자 • 
+                            ${new Date(content.scraped_at).toLocaleString('ko-KR')}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('수집 콘텐츠 로드 실패:', error);
+                document.getElementById('scraped-content').innerHTML = '<div class="loading">로드 실패</div>';
+            }
+        }
+        
+        // 생성된 콘텐츠 로드
+        async function loadGeneratedContent() {
+            try {
+                const response = await fetch('/api/contents?per_page=10');
+                const result = await response.json();
+                
+                const container = document.getElementById('generated-content');
+                if (!result.success || result.data.contents.length === 0) {
+                    container.innerHTML = '<div class="loading">생성된 콘텐츠가 없습니다.</div>';
+                    return;
+                }
+                
+                container.innerHTML = result.data.contents.map(content => `
+                    <div class="content-item" id="content-${content.id}">
+                        <div class="content-title">${content.title || 'No Title'}</div>
+                        <div class="content-meta">
+                            <span class="status-indicator status-success"></span>
+                            ${content.content?.length || 0}자 • 
+                            ${new Date(content.created_at).toLocaleString('ko-KR')}
+                        </div>
+                        <div class="button-group" style="margin-top: 10px; gap: 10px;">
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.9em;" 
+                                    onclick="saveAsMarkdown(${content.id}, '${(content.title || 'content').replace(/'/g, '')}')">
+                                💾 MD 파일로 저장
+                            </button>
+                            <span id="saved-file-${content.id}" style="display: none;">
+                                <button class="btn" style="padding: 6px 12px; font-size: 0.9em; background: #27ae60;" 
+                                        onclick="openMarkdownFile(this.dataset.filename)" data-filename="">
+                                    📂 파일 열기
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('생성 콘텐츠 로드 실패:', error);
+                document.getElementById('generated-content').innerHTML = '<div class="loading">로드 실패</div>';
+            }
+        }
+        
+        // 타겟 상태 로드
+        async function loadTargetsStatus() {
+            try {
+                const response = await fetch('/api/targets');
+                const targets = await response.json();
+                
+                const container = document.getElementById('targets-status');
+                if (targets.length === 0) {
+                    container.innerHTML = '<div class="loading">스크래핑 타겟이 없습니다.</div>';
+                    return;
+                }
+                
+                container.innerHTML = targets.map(target => `
+                    <div class="content-item">
+                        <div class="content-title">${target.name || 'Unknown'}</div>
+                        <div class="content-meta">
+                            <span class="status-indicator ${target.is_active ? 'status-success' : 'status-error'}"></span>
+                            ${target.is_active ? '활성' : '비활성'} • 
+                            ${target.url ? target.url.substring(0, 60) + '...' : 'No URL'}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('타겟 상태 로드 실패:', error);
+                document.getElementById('targets-status').innerHTML = '<div class="loading">로드 실패</div>';
+            }
+        }
+        
+        // 콘텐츠 수집
+        async function scrapeContent() {
+            if (isLoading) return;
+            isLoading = true;
+            
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '📡 수집 중...';
+            button.disabled = true;
+            
+            try {
+                const response = await fetch('/api/scrape', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    alert('✅ 콘텐츠 수집을 시작했습니다!');
+                    setTimeout(refreshData, 2000);
+                } else {
+                    alert('❌ 콘텐츠 수집 실패');
+                }
+            } catch (error) {
+                console.error('수집 실패:', error);
+                alert('❌ 연결 오류가 발생했습니다.');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+                isLoading = false;
+            }
+        }
+        
+        // 콘텐츠 생성
+        async function generateContent() {
+            if (isLoading) return;
+            isLoading = true;
+            
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '🎯 생성 중...';
+            button.disabled = true;
+            
+            try {
+                const response = await fetch('/api/contents/generate', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    alert('✅ 콘텐츠 생성을 시작했습니다!');
+                    setTimeout(refreshData, 2000);
+                } else {
+                    alert('❌ 콘텐츠 생성 실패');
+                }
+            } catch (error) {
+                console.error('생성 실패:', error);
+                alert('❌ 연결 오류가 발생했습니다.');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+                isLoading = false;
+            }
+        }
+        
+        // Slack 전송
+        async function sendToSlack() {
+            if (isLoading) return;
+            isLoading = true;
+            
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '📤 전송 중...';
+            button.disabled = true;
+            
+            try {
+                const response = await fetch('/api/slack/send/all', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    alert('✅ Slack 전송을 시작했습니다!');
+                    setTimeout(refreshData, 2000);
+                } else {
+                    alert('❌ Slack 전송 실패');
+                }
+            } catch (error) {
+                console.error('전송 실패:', error);
+                alert('❌ 연결 오류가 발생했습니다.');
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+                isLoading = false;
+            }
+        }
+
+        // 마크다운 파일로 저장
+        async function saveAsMarkdown(contentId, title) {
+            if (isLoading) return;
+            
+            try {
+                const response = await fetch('/api/contents/save-markdown', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content_id: contentId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ ${result.message}`);
+                    
+                    // 파일 열기 버튼 표시
+                    const fileSpan = document.getElementById(`saved-file-${contentId}`);
+                    const openButton = fileSpan.querySelector('button');
+                    openButton.dataset.filename = result.data.filename;
+                    fileSpan.style.display = 'inline';
+                } else {
+                    alert(`❌ 저장 실패: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('마크다운 저장 실패:', error);
+                alert('❌ 마크다운 저장 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 마크다운 파일 열기
+        async function openMarkdownFile(filename) {
+            if (!filename) {
+                alert('❌ 파일명이 없습니다.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/contents/open-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ ${result.message}`);
+                } else {
+                    alert(`❌ 파일 열기 실패: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('파일 열기 실패:', error);
+                alert('❌ 파일 열기 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 마크다운 파일 목록 로드
+        async function loadMarkdownFiles() {
+            try {
+                const response = await fetch('/api/contents/list-markdown');
+                const result = await response.json();
+                
+                const section = document.getElementById('markdown-files-section');
+                const container = document.getElementById('markdown-files');
+                
+                if (result.success && result.data.length > 0) {
+                    container.innerHTML = result.data.map(file => `
+                        <div class="content-item">
+                            <div class="content-title">${file.filename}</div>
+                            <div class="content-meta">
+                                <span class="status-indicator status-success"></span>
+                                ${(file.size / 1024).toFixed(1)}KB • 
+                                ${new Date(file.created_at).toLocaleString('ko-KR')}
+                            </div>
+                            <div class="button-group" style="margin-top: 10px;">
+                                <button class="btn" style="padding: 6px 12px; font-size: 0.9em; background: #27ae60;" 
+                                        onclick="openMarkdownFile('${file.filename}')">
+                                    📂 파일 열기
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                    section.style.display = 'block';
+                } else {
+                    container.innerHTML = '<div class="loading">저장된 마크다운 파일이 없습니다.</div>';
+                    section.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('마크다운 파일 목록 로드 실패:', error);
+                document.getElementById('markdown-files').innerHTML = '<div class="loading">로드 실패</div>';
+            }
+        }
+    </script>
+</body>
+</html> 

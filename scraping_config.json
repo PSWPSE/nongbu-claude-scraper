@@ -1,0 +1,28 @@
+{
+  "scraping_interval_minutes": 240,
+  "time_range_hours": 4,
+  "content_time_limit_minutes": 30,
+  "min_content_length": 200,
+  "max_articles_per_source": 10,
+  "min_word_count": 50,
+  "require_author": false,
+  "require_publish_date": true,
+  "keywords_include": "",
+  "keywords_exclude": "",
+  "sources": {
+    "reuters": true,
+    "marketwatch": true,
+    "cnn_business": true,
+    "bloomberg": true,
+    "yahoo_finance": true,
+    "bbc_business": true
+  },
+  "use_selenium": true,
+  "test_mode": false,
+  "test_mode_article_limit": 5,
+  "request_timeout": 30,
+  "max_retries": 2,
+  "content_quality_score_min": 0.7,
+  "duplicate_check_enabled": true,
+  "content_validation_strict": false
+}
