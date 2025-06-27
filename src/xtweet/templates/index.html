@@ -258,6 +258,53 @@
             </div>
         </div>
         
+        <!-- 수집 기준 관리 -->
+        <div class="content-section">
+            <h3>⚙️ 수집 기준 관리</h3>
+            <div class="button-group" style="margin-bottom: 15px;">
+                <button class="btn" onclick="loadScrapingCriteria()">📋 현재 기준 보기</button>
+                <button class="btn" onclick="showCriteriaForm()">✏️ 기준 수정</button>
+            </div>
+            <div id="scraping-criteria" class="content-list">
+                <div class="loading">수집 기준을 불러오는 중...</div>
+            </div>
+            
+            <!-- 기준 수정 폼 -->
+            <div id="criteria-form" style="display: none; margin-top: 15px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4>🔧 수집 기준 설정</h4>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">키워드 필터 (쉼표로 구분):</label>
+                    <textarea id="keywords-input" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+                              placeholder="예: 주식, 투자, 경제, 금융, 비트코인"></textarea>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">제외 키워드 (쉼표로 구분):</label>
+                    <textarea id="exclude-keywords-input" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+                              placeholder="예: 스포츠, 연예, 게임"></textarea>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">최소 콘텐츠 길이:</label>
+                    <input type="number" id="min-length-input" style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" 
+                           value="100" min="50" max="1000">
+                    <span style="margin-left: 10px; color: #666;">글자</span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">수집 시간 제한:</label>
+                    <select id="time-limit-input" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="60">최근 1시간</option>
+                        <option value="180" selected>최근 3시간</option>
+                        <option value="360">최근 6시간</option>
+                        <option value="720">최근 12시간</option>
+                        <option value="1440">최근 24시간</option>
+                    </select>
+                </div>
+                <div class="button-group">
+                    <button class="btn" onclick="saveScrapingCriteria()">💾 저장</button>
+                    <button class="btn" style="background: #95a5a6;" onclick="hideCriteriaForm()">❌ 취소</button>
+                </div>
+            </div>
+        </div>
+        
         <!-- 최근 수집된 콘텐츠 -->
         <div class="content-section">
             <h3>📄 최근 수집된 콘텐츠</h3>
@@ -319,7 +366,8 @@
                     loadStats(),
                     loadScrapedContent(),
                     loadGeneratedContent(),
-                    loadTargetsStatus()
+                    loadTargetsStatus(),
+                    loadScrapingCriteria()
                 ]);
                 
                 document.getElementById('last-update').textContent = new Date().toLocaleString('ko-KR');
@@ -377,37 +425,55 @@
         // 생성된 콘텐츠 로드
         async function loadGeneratedContent() {
             try {
-                const response = await fetch('/api/contents?per_page=10');
+                const response = await fetch('/api/generated-content-detailed?page=1&per_page=10');
                 const result = await response.json();
                 
                 const container = document.getElementById('generated-content');
-                if (!result.success || result.data.contents.length === 0) {
+                if (!result.success || result.data.content.length === 0) {
                     container.innerHTML = '<div class="loading">생성된 콘텐츠가 없습니다.</div>';
                     return;
                 }
                 
-                container.innerHTML = result.data.contents.map(content => `
-                    <div class="content-item" id="content-${content.id}">
-                        <div class="content-title">${content.title || 'No Title'}</div>
-                        <div class="content-meta">
-                            <span class="status-indicator status-success"></span>
-                            ${content.content?.length || 0}자 • 
-                            ${new Date(content.created_at).toLocaleString('ko-KR')}
-                        </div>
-                        <div class="button-group" style="margin-top: 10px; gap: 10px;">
-                            <button class="btn" style="padding: 6px 12px; font-size: 0.9em;" 
-                                    onclick="saveAsMarkdown(${content.id}, '${(content.title || 'content').replace(/'/g, '')}')">
-                                💾 MD 파일로 저장
+                container.innerHTML = result.data.content.map(content => {
+                    // 마크다운 파일 존재 여부에 따른 버튼 구성
+                    let buttons = `
+                        <button class="btn" style="padding: 6px 12px; font-size: 0.9em;" 
+                                onclick="saveAsMarkdown(${content.id}, '${(content.title || 'content').replace(/'/g, '')}')">
+                            💾 MD 파일로 저장
+                        </button>
+                    `;
+                    
+                    // 마크다운 파일이 이미 존재하는 경우 MD파일열기 버튼 추가
+                    if (content.markdown_file && content.markdown_file.exists) {
+                        buttons += `
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.9em; background: #27ae60; margin-left: 10px;" 
+                                    onclick="openExistingMarkdownFile('${content.markdown_file.filename}')">
+                                📂 MD파일열기
                             </button>
-                            <span id="saved-file-${content.id}" style="display: none;">
-                                <button class="btn" style="padding: 6px 12px; font-size: 0.9em; background: #27ae60;" 
-                                        onclick="openMarkdownFile(this.dataset.filename)" data-filename="">
-                                    📂 파일 열기
-                                </button>
-                            </span>
+                        `;
+                    }
+                    
+                    return `
+                        <div class="content-item" id="content-${content.id}">
+                            <div class="content-title">${content.title || 'No Title'}</div>
+                            <div class="content-meta">
+                                <span class="status-indicator status-success"></span>
+                                ${content.content_length || 0}자 • 
+                                ${new Date(content.created_at).toLocaleString('ko-KR')}
+                                ${content.markdown_file && content.markdown_file.exists ? ' • 📄 MD파일 저장됨' : ''}
+                            </div>
+                            <div class="button-group" style="margin-top: 10px; gap: 10px;">
+                                ${buttons}
+                                <span id="saved-file-${content.id}" style="display: none;">
+                                    <button class="btn" style="padding: 6px 12px; font-size: 0.9em; background: #27ae60;" 
+                                            onclick="openMarkdownFile(this.dataset.filename)" data-filename="">
+                                        📂 파일 열기
+                                    </button>
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch (error) {
                 console.error('생성 콘텐츠 로드 실패:', error);
                 document.getElementById('generated-content').innerHTML = '<div class="loading">로드 실패</div>';
@@ -554,11 +620,10 @@
                 if (result.success) {
                     alert(`✅ ${result.message}`);
                     
-                    // 파일 열기 버튼 표시
-                    const fileSpan = document.getElementById(`saved-file-${contentId}`);
-                    const openButton = fileSpan.querySelector('button');
-                    openButton.dataset.filename = result.data.filename;
-                    fileSpan.style.display = 'inline';
+                    // 생성된 콘텐츠 목록 새로고침하여 MD파일열기 버튼 표시
+                    setTimeout(() => {
+                        loadGeneratedContent();
+                    }, 500);
                 } else {
                     alert(`❌ 저장 실패: ${result.error}`);
                 }
@@ -629,6 +694,125 @@
             } catch (error) {
                 console.error('마크다운 파일 목록 로드 실패:', error);
                 document.getElementById('markdown-files').innerHTML = '<div class="loading">로드 실패</div>';
+            }
+        }
+
+        // 수집 기준 관리 함수들
+        async function loadScrapingCriteria() {
+            try {
+                const response = await fetch('/api/scraping-criteria');
+                const result = await response.json();
+                
+                const container = document.getElementById('scraping-criteria');
+                
+                if (result.success) {
+                    const criteria = result.data;
+                    container.innerHTML = `
+                        <div class="content-item">
+                            <div class="content-title">📋 현재 수집 기준</div>
+                            <div class="content-meta">
+                                <strong>키워드:</strong> ${criteria.keywords?.join(', ') || '설정 없음'}<br>
+                                <strong>제외 키워드:</strong> ${criteria.exclude_keywords?.join(', ') || '설정 없음'}<br>
+                                <strong>최소 길이:</strong> ${criteria.min_length || 100}자<br>
+                                <strong>시간 제한:</strong> ${criteria.time_limit_minutes || 180}분<br>
+                                <strong>마지막 업데이트:</strong> ${new Date(criteria.updated_at).toLocaleString('ko-KR')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="loading">수집 기준을 불러올 수 없습니다.</div>';
+                }
+            } catch (error) {
+                console.error('수집 기준 로드 실패:', error);
+                document.getElementById('scraping-criteria').innerHTML = '<div class="loading">로드 실패</div>';
+            }
+        }
+
+        function showCriteriaForm() {
+            document.getElementById('criteria-form').style.display = 'block';
+            loadCurrentCriteria();
+        }
+
+        function hideCriteriaForm() {
+            document.getElementById('criteria-form').style.display = 'none';
+        }
+
+        async function loadCurrentCriteria() {
+            try {
+                const response = await fetch('/api/scraping-criteria');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const criteria = result.data;
+                    document.getElementById('keywords-input').value = criteria.keywords?.join(', ') || '';
+                    document.getElementById('exclude-keywords-input').value = criteria.exclude_keywords?.join(', ') || '';
+                    document.getElementById('min-length-input').value = criteria.min_length || 100;
+                    document.getElementById('time-limit-input').value = criteria.time_limit_minutes || 180;
+                }
+            } catch (error) {
+                console.error('현재 기준 로드 실패:', error);
+            }
+        }
+
+        async function saveScrapingCriteria() {
+            try {
+                const keywords = document.getElementById('keywords-input').value
+                    .split(',').map(k => k.trim()).filter(k => k.length > 0);
+                const excludeKeywords = document.getElementById('exclude-keywords-input').value
+                    .split(',').map(k => k.trim()).filter(k => k.length > 0);
+                const minLength = parseInt(document.getElementById('min-length-input').value);
+                const timeLimit = parseInt(document.getElementById('time-limit-input').value);
+
+                const response = await fetch('/api/scraping-criteria', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        keywords: keywords,
+                        exclude_keywords: excludeKeywords,
+                        min_length: minLength,
+                        time_limit_minutes: timeLimit
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ 수집 기준이 저장되었습니다!');
+                    hideCriteriaForm();
+                    loadScrapingCriteria();
+                } else {
+                    alert(`❌ 저장 실패: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('수집 기준 저장 실패:', error);
+                alert('❌ 저장 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 기존 마크다운 파일 열기 (새로 추가된 함수)
+        async function openExistingMarkdownFile(filename) {
+            if (!filename) {
+                alert('❌ 파일명이 없습니다.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/open-markdown-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ ${result.message}`);
+                } else {
+                    alert(`❌ 파일 열기 실패: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('마크다운 파일 열기 실패:', error);
+                alert('❌ 마크다운 파일 열기 중 오류가 발생했습니다.');
             }
         }
     </script>

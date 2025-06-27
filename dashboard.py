@@ -576,17 +576,36 @@ DASHBOARD_HTML = """
                             </div>
                         `;
                     } else {
+                        // 생성된 콘텐츠의 경우 마크다운 파일 존재 여부 확인
+                        let buttons = '';
+                        if (item.markdown_file && item.markdown_file.exists) {
+                            // 마크다운 파일이 이미 존재하는 경우
+                            buttons = `
+                                <button class="btn btn-success" onclick="openMarkdownFile('${item.markdown_file.filename}')">📂 MD파일열기</button>
+                                <button class="btn btn-secondary" onclick="saveContentMarkdown(${item.id})" style="margin-left: 10px;">💾 다시 저장</button>
+                            `;
+                        } else {
+                            // 마크다운 파일이 없는 경우
+                            buttons = `
+                                <button class="btn btn-success" onclick="saveContentMarkdown(${item.id})">💾 마크다운 저장</button>
+                            `;
+                        }
+                        
                         div.innerHTML = `
                             <div class="content-title">${item.title}</div>
                             <div class="content-meta">
                                 📅 ${new Date(item.created_at).toLocaleString('ko-KR')} | 🤖 Claude 생성
+                                ${item.markdown_file && item.markdown_file.exists ? ' | 📄 MD파일 저장됨' : ''}
                             </div>
                             <div class="content-summary">${item.summary || '요약 없음'}</div>
-                            <div style="text-align: right; margin-top: 10px;">
+                            <div class="content-buttons" style="text-align: right; margin-top: 10px;">
                                 <button class="btn btn-info" onclick="viewGeneratedContent(${item.id})">📖 전체 보기</button>
-                                <button class="btn btn-success" onclick="saveMarkdown(${item.id})">💾 마크다운 저장</button>
+                                ${buttons}
                             </div>
                         `;
+                        
+                        // 개별 업데이트를 위한 data 속성 추가
+                        div.setAttribute('data-content-id', item.id);
                     }
                     container.appendChild(div);
                     });
@@ -719,18 +738,21 @@ ${result.content || '내용 없음'}`;
             const btn = event.target;
             const originalText = btn.innerHTML;
             
-                btn.innerHTML = '⏳ 저장 중...';
-                btn.disabled = true;
-                
+            btn.innerHTML = '⏳ 저장 중...';
+            btn.disabled = true;
+            
             try {
-                const result = await apiCall('/api/save-content-markdown', {
+                const result = await apiCall('/api/contents/save-markdown', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content_id: contentId })
                 });
                 
                 if (result.success) {
-                    alert(`✅ 마크다운 저장 완료!\n파일: ${result.filename}`);
+                    alert(`✅ 마크다운 저장 완료!\n파일: ${result.data.filename}`);
+                    
+                    // 해당 콘텐츠 아이템만 업데이트 (전체 새로고침 대신)
+                    updateContentItem(contentId, result.data.filename);
                 } else {
                     alert('❌ 저장 실패: ' + result.error);
                 }
@@ -739,13 +761,56 @@ ${result.content || '내용 없음'}`;
                 alert('❌ 저장 중 오류가 발생했습니다: ' + error.message);
             }
             
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
 
-        // 마크다운 저장 (기존 함수 - 호환성 유지)
-        async function saveMarkdown(generatedId) {
-            await saveContentMarkdown(generatedId);
+        // 개별 콘텐츠 아이템 업데이트 (새로운 함수)
+        function updateContentItem(contentId, filename) {
+            const contentItem = document.querySelector(`[data-content-id="${contentId}"]`);
+            if (!contentItem) return;
+            
+            // 기존 버튼 영역 찾기
+            const buttonGroup = contentItem.querySelector('.content-buttons');
+            if (!buttonGroup) return;
+            
+            // 새로운 버튼 구성 (마크다운 파일이 존재하는 상태)
+            const newButtons = `
+                <button class="btn btn-info" onclick="viewGeneratedContent(${contentId})">📖 전체 보기</button>
+                <button class="btn btn-success" onclick="openMarkdownFile('${filename}')">📂 MD파일열기</button>
+                <button class="btn btn-secondary" onclick="saveContentMarkdown(${contentId})" style="margin-left: 10px;">💾 다시 저장</button>
+            `;
+            
+            // 버튼 영역 업데이트
+            buttonGroup.innerHTML = newButtons;
+            
+            // 메타 정보에 MD파일 저장됨 표시 추가
+            const metaDiv = contentItem.querySelector('.content-meta');
+            if (metaDiv && !metaDiv.textContent.includes('📄 MD파일 저장됨')) {
+                metaDiv.innerHTML += ' | 📄 MD파일 저장됨';
+            }
+        }
+
+        // 마크다운 파일 열기
+        async function openMarkdownFile(filename) {
+            try {
+                const result = await apiCall('/api/open-markdown-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                if (result.success) {
+                    // 성공 시 팝업 없이 조용히 파일 열기 (사용자 경험 개선)
+                    console.log(`✅ 마크다운 파일 열기 성공: ${filename}`);
+                } else {
+                    // 실패 시에만 오류 팝업 표시
+                    alert('❌ 파일 열기 실패: ' + result.error);
+                }
+            } catch (error) {
+                console.error('파일 열기 오류:', error);
+                alert('❌ 파일 열기 중 오류가 발생했습니다: ' + error.message);
+            }
         }
 
         // 모달 표시 함수
@@ -921,7 +986,7 @@ def api_generate_content():
 내용: {original_content[:2000]}
 
 === 중요 사항 ===
-1. **최대 500자 이내로 작성** - 트위터 게시 최적화
+1. **최대 1000자 이내로 작성** - 상세한 분석 제공
 2. **종목 언급 시 반드시 $심볼 표기** - 예: 애플 $AAPL, 테슬라 $TSLA
 3. **전문적이지만 이해하기 쉽게 작성** - 일반인도 이해 가능
 4. **이모지 적절히 활용하여 가독성 향상** - 시각적 임팩트
@@ -1057,13 +1122,17 @@ def api_generated_content_detailed():
             # 요약 생성 (첫 200자)
             summary = content[:200] + '...' if content and len(content) > 200 else (content or '')
             
+            # 마크다운 파일 존재 여부 확인
+            markdown_file = check_markdown_file_exists(row_id, title)
+            
             content_list.append({
                 'id': row_id,
                 'title': title or 'No Title',
                 'summary': summary,
                 'content_length': len(content) if content else 0,
                 'created_at': created_at or '',
-                'source': 'AI Generated'
+                'source': 'AI Generated',
+                'markdown_file': markdown_file  # 마크다운 파일 정보 추가
             })
         
         return create_response(data={
@@ -1081,7 +1150,35 @@ def api_generated_content_detailed():
             'page': 1, 'pages': 0, 'total': 0
         })
 
-@app.route('/api/save-content-markdown', methods=['POST'])
+def check_markdown_file_exists(content_id, title):
+    """특정 콘텐츠의 마크다운 파일 존재 여부 확인"""
+    try:
+        import glob
+        
+        # 안전한 제목 생성 (저장 시와 동일한 로직)
+        safe_title = "".join(c for c in (title or 'content') if c.isalnum() or c in (' ', '-', '_')).rstrip()[:50]
+        
+        # saved_markdown 디렉토리에서 해당 콘텐츠의 파일 검색
+        pattern = f"saved_markdown/nongbu_{safe_title}_*.md"
+        matching_files = glob.glob(pattern)
+        
+        if matching_files:
+            # 가장 최근 파일 반환
+            latest_file = max(matching_files, key=os.path.getctime)
+            filename = os.path.basename(latest_file)
+            return {
+                'exists': True,
+                'filename': filename,
+                'path': latest_file
+            }
+        else:
+            return {'exists': False}
+            
+    except Exception as e:
+        print(f"마크다운 파일 확인 오류: {e}")
+        return {'exists': False}
+
+@app.route('/api/contents/save-markdown', methods=['POST'])
 def api_save_content_markdown():
     """개별 생성된 콘텐츠를 마크다운 파일로 저장"""
     try:
@@ -1156,9 +1253,7 @@ def api_scheduler_info():
         with open("scheduler_info.json", 'r', encoding='utf-8') as f:
             return json.load(f)
     
-    info = safe_file_operation(get_scheduler_info, {
-        'is_running': False, 'last_run': None, 'next_run': None, 'interval_minutes': 180
-            })
+    info = safe_file_operation(get_scheduler_info, {})
     
     return jsonify(info)
 
@@ -1396,30 +1491,127 @@ def api_delete_scraped_content():
 
 @app.route('/api/delete-all-generated-content', methods=['POST'])
 def api_delete_generated_content():
+    """모든 생성된 콘텐츠 삭제"""
     try:
         conn = get_db_connection()
         if not conn:
             return create_response(success=False, error='데이터베이스 연결 실패')
         
         cursor = conn.cursor()
+        cursor.execute('DELETE FROM generated_contents')
+        deleted_count = cursor.rowcount
         
-        # 삭제할 개수 확인
-        cursor.execute("SELECT COUNT(*) FROM generated_contents")
-        count_result = cursor.fetchone()
-        deleted_count = count_result[0] if count_result else 0
-        
-        # 삭제 실행
-        cursor.execute("DELETE FROM generated_contents")
         conn.commit()
         conn.close()
         
-        return create_response(data={
-                'deleted_count': deleted_count,
-                'message': f'모든 생성된 콘텐츠 삭제 완료: {deleted_count}개'
-            })
+        return create_response(
+            success=True,
+            message=f'{deleted_count}개의 생성된 콘텐츠가 삭제되었습니다.',
+            deleted_count=deleted_count
+        )
     except Exception as e:
         print(f"생성된 콘텐츠 삭제 오류: {e}")
-        return create_response(success=False, error=f'삭제 실패: {str(e)}')
+        return create_response(success=False, error=str(e))
+
+@app.route('/api/scraping-criteria', methods=['GET'])
+def api_get_scraping_criteria():
+    """수집 기준 조회"""
+    try:
+        def load_criteria():
+            if os.path.exists('scraping_config.json'):
+                with open('scraping_config.json', 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            else:
+                # 기본 설정 반환
+                return {
+                    'keywords': ['주식', '투자', '경제', '금융', '시장'],
+                    'exclude_keywords': ['스포츠', '연예', '게임'],
+                    'min_length': 100,
+                    'time_limit_minutes': 180,
+                    'updated_at': datetime.now().isoformat()
+                }
+        
+        criteria = safe_file_operation(load_criteria, {})
+        return create_response(data=criteria)
+        
+    except Exception as e:
+        print(f"수집 기준 조회 오류: {e}")
+        return create_response(success=False, error=str(e))
+
+@app.route('/api/scraping-criteria', methods=['POST'])
+def api_save_scraping_criteria():
+    """수집 기준 저장"""
+    try:
+        data = request.get_json()
+        
+        criteria = {
+            'keywords': data.get('keywords', []),
+            'exclude_keywords': data.get('exclude_keywords', []),
+            'min_length': data.get('min_length', 100),
+            'time_limit_minutes': data.get('time_limit_minutes', 180),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        def save_criteria():
+            with open('scraping_config.json', 'w', encoding='utf-8') as f:
+                json.dump(criteria, f, ensure_ascii=False, indent=2)
+            return True
+        
+        success = safe_file_operation(save_criteria, False)
+        
+        if success:
+            return create_response(
+                data=criteria,
+                message='수집 기준이 성공적으로 저장되었습니다.'
+            )
+        else:
+            return create_response(success=False, error='수집 기준 저장에 실패했습니다.')
+            
+    except Exception as e:
+        print(f"수집 기준 저장 오류: {e}")
+        return create_response(success=False, error=str(e))
+
+@app.route('/api/open-markdown-file', methods=['POST'])
+def api_open_markdown_file():
+    """마크다운 파일 열기"""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        
+        if not filename:
+            return create_response(success=False, error='파일명이 필요합니다.')
+        
+        file_path = os.path.join('saved_markdown', filename)
+        
+        if not os.path.exists(file_path):
+            return create_response(success=False, error='파일을 찾을 수 없습니다.')
+        
+        # 운영체제별 파일 열기
+        import subprocess
+        import platform
+        
+        system = platform.system()
+        try:
+            if system == 'Darwin':  # macOS
+                subprocess.run(['open', file_path])
+            elif system == 'Windows':
+                subprocess.run(['start', file_path], shell=True)
+            else:  # Linux
+                subprocess.run(['xdg-open', file_path])
+            
+            return create_response(
+                success=True,
+                message=f'마크다운 파일이 열렸습니다: {filename}'
+            )
+        except Exception as e:
+            return create_response(
+                success=False, 
+                error=f'파일 열기 실패: {str(e)}'
+            )
+            
+    except Exception as e:
+        print(f"마크다운 파일 열기 오류: {e}")
+        return create_response(success=False, error=str(e))
 
 def find_free_port(start_port=8001):
     import socket
